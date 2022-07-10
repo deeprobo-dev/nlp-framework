@@ -61,10 +61,11 @@ def main(model_name = args.name, batch_size = args.b, epochs = args.e, resume = 
             print(f'src = {src}')
             print(f'trg = {trg}')
 
-            translation = translate_sentence(src, trg, SRC, TRG, model, device)
+            translation = translate_sentence(src, SRC, TRG, model, device)
 
             print(f'predicted trg = {translation}')
-            
+
         print("\n****************************************************************************\n")
+
 if __name__ == "__main__":
     main()

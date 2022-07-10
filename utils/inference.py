@@ -1,15 +1,15 @@
 import torch
 import spacy
 
-def translate_sentence(sentence1, sentence2, src_field, trg_field, model, device, max_len = 50):
+def translate_sentence(sentence, src_field, trg_field, model, device, max_len = 50):
 
     model.eval()
         
-    if isinstance(sentence1, str):
+    if isinstance(sentence, str):
         nlp = spacy.load('de')
-        tokens = [token.text.lower() for token in nlp(sentence1)]
+        tokens = [token.text.lower() for token in nlp(sentence)]
     else:
-        tokens = [token.lower() for token in sentence1]
+        tokens = [token.lower() for token in sentence]
 
     tokens = [src_field.init_token] + tokens + [src_field.eos_token]
         
@@ -17,25 +17,25 @@ def translate_sentence(sentence1, sentence2, src_field, trg_field, model, device
 
     src_tensor = torch.LongTensor(src_indexes).unsqueeze(1).to(device)
 
-    if isinstance(sentence2, str):
-        nlp = spacy.load('de')
-        tokens = [token.text.lower() for token in nlp(sentence2)]
-    else:
-        tokens = [token.lower() for token in sentence2]
-
-    tokens = [trg_field.init_token] + tokens + [trg_field.eos_token]
-        
-    trg_indexes = [trg_field.vocab.stoi[token] for token in tokens]
-
-    trg_tensor = torch.LongTensor(trg_indexes).unsqueeze(1).to(device)
-
     with torch.no_grad():
-        output = model(src_tensor, trg_tensor, 0)
-        output_dim = output.shape[-1]
-        output = output[1:].view(-1, output_dim)
+        encoder_outputs, hidden = model.encoder(src_tensor)
+
+    trg_indexes = [trg_field.vocab.stoi[trg_field.init_token]]
+
+    for i in range(max_len):
+
+        trg_tensor = torch.LongTensor(trg_indexes).unsqueeze(1).to(device)
+        
+        with torch.no_grad():
+            output, hidden = model.decoder(trg_tensor[i], hidden, encoder_outputs)
         
         pred_token = output.argmax(1)
         
-    trg_tokens = [trg_field.vocab.itos[i] for i in pred_token]
+        trg_indexes.append(pred_token)
+
+        if pred_token == trg_field.vocab.stoi[trg_field.eos_token]:
+            break
     
-    return trg_tokens
+    trg_tokens = [trg_field.vocab.itos[i] for i in trg_indexes]
+    
+    return trg_tokens[1:]
